@@ -1,0 +1,56 @@
+name: flutter_application_1
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.10.1 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Supabase for authentication & database
+  supabase_flutter: ^2.3.4
+
+  # Carousel Slider for banners
+  carousel_slider: ^5.1.1
+
+  # QR Code generator (v4.x supports named data parameter)
+  qr_flutter: ^4.1.0
+
+  # Google Maps
+  google_maps_flutter: ^2.14.0
+
+  # iOS style icons
+  cupertino_icons: ^1.0.8
+
+  # Screenshot for capturing ticket
+  screenshot: ^3.0.0
+
+  # Share/Download ticket
+  share_plus: ^12.0.1
+
+  # Win32 (for Windows platform)
+  win32: ^5.15.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Flutter launcher icons configuration
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/Glogo.png"
+
+flutter:
+  uses-material-design: true
+
+  # Assets (images, logos, banners)
+  assets:
+    - assets/images/Glogo.png
+    - assets/images/cover.png
