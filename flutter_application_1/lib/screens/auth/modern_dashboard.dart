@@ -1,239 +1,311 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../destinations.page/destination_details_page.dart';
-import '../auth/login_screen.dart';
-import '../auth/my_tickets_page.dart'; // ✅ My Tickets Page import
 
-/// =======================
-/// USER DASHBOARD PAGE
-/// =======================
-class UserDashboard extends StatefulWidget {
-  const UserDashboard({super.key});
+import '../auth/login_screen.dart';
+import '../auth/my_tickets_page.dart';
+import '../DestinationListPage/destination_details_page.dart';
+import '../DestinationListPage/destination_list_page.dart';
+
+class ModernDashboard extends StatefulWidget {
+  const ModernDashboard({super.key});
 
   @override
-  State<UserDashboard> createState() => _UserDashboardState();
+  State<ModernDashboard> createState() => _ModernDashboardState();
 }
 
-class _UserDashboardState extends State<UserDashboard> {
-  int selectedIndex = 0; // BottomNavigationBar এর ইনডেক্স ট্র্যাক করার জন্য
+class _ModernDashboardState extends State<ModernDashboard> {
+  int selectedIndex = 0;
+
+  final SupabaseClient _client = Supabase.instance.client;
+
+  late Future<List<Map<String, dynamic>>> _futureDestinations;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Visit Bangladesh'), // অ্যাপের শিরোনাম
-        centerTitle: true,
-        backgroundColor: Colors.green,
-        actions: [
-          // ==========================
-          // সার্চ বাটন
-          // ==========================
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: DestinationSearch(), // সার্চ ডেলিগেট কল
-              );
-            },
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.green),
-              child: Text(
-                'Hello, Tourist!',
-                style: TextStyle(color: Colors.white, fontSize: 24),
-              ),
-            ),
-            // ==========================
-            // Drawer Menu Items
-            // ==========================
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              onTap: () {
-                setState(() => selectedIndex = 0);
-                Navigator.pop(context); // Drawer বন্ধ
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.confirmation_number),
-              title: const Text('My Tickets'),
-              onTap: () {
-                setState(() => selectedIndex = 1);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.rate_review),
-              title: const Text('Reviews'),
-              onTap: () {
-                setState(() => selectedIndex = 2);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              onTap: () {
-                setState(() => selectedIndex = 3);
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () async {
-                // ==========================
-                // Logout Logic
-                // ==========================
-                await Supabase.instance.client.auth.signOut(); // Supabase থেকে logout
-                if (!context.mounted) return;
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LoginScreen(), // LoginScreen-এ ফিরে যাবে
-                  ),
-                  (route) => false,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-      body: _buildPage(), // BottomNavigationBar অনুযায়ী page
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() => selectedIndex = index); // BottomNavigationBar tap হ্যান্ডেল
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.confirmation_number), label: 'Tickets'),
-          BottomNavigationBarItem(icon: Icon(Icons.rate_review), label: 'Reviews'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  void _loadData() {
+    _futureDestinations = _client
+        .from('destinations')
+        .select()
+        .then((value) => List<Map<String, dynamic>>.from(value));
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _loadData();
+    });
+  }
+
+  void _logout() async {
+    await _client.auth.signOut();
+
+    if (!context.mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 
-  /// ==========================
-  /// BottomNavigationBar অনুযায়ী page রেন্ডার
-  /// ==========================
-  Widget _buildPage() {
+  void _openSearch() {
+    showSearch(
+      context: context,
+      delegate: DestinationSearch(_client),
+    );
+  }
+
+  Widget _body() {
     switch (selectedIndex) {
       case 0:
-        return const DestinationListPage(); // Home page
+        return _homeBody();
       case 1:
-        return MyTicketsPage(); // My Tickets Page
+        return const MyTicketsPage();
       case 2:
-        return const Center(child: Text('Reviews Page', style: TextStyle(fontSize: 22)));
+        return const Center(child: Text("Reviews ⭐"));
       case 3:
-        return const Center(child: Text('Profile Page', style: TextStyle(fontSize: 22)));
+        return const Center(child: Text("Profile 👤"));
       default:
         return const SizedBox();
     }
   }
-}
 
-/// =======================
-/// DESTINATION LIST PAGE
-/// =======================
-class DestinationListPage extends StatefulWidget {
-  const DestinationListPage({super.key});
+  Widget _homeBody() {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _futureDestinations,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const _LoadingGrid();
+          }
 
-  @override
-  State<DestinationListPage> createState() => _DestinationListPageState();
-}
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text("Something went wrong 😢"),
+            );
+          }
 
-class _DestinationListPageState extends State<DestinationListPage> {
-  final SupabaseClient _client = Supabase.instance.client; // Supabase Client
+          final data = snapshot.data ?? [];
 
-  // ==========================
-  // ডাটাবেস থেকে সব ডেস্টিনেশন ফেচ করা
-  // ==========================
-  Future<List<Map<String, dynamic>>> _fetchDestinations() async {
-    final response = await _client.from('destinations').select().order('name');
-    return List<Map<String, dynamic>>.from(response);
+          if (data.isEmpty) {
+            return const Center(child: Text("No destinations found"));
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: GridView.builder(
+              physics: const BouncingScrollPhysics(),
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.78,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: data.length,
+              itemBuilder: (context, i) {
+                final d = data[i];
+
+                return _DestinationCard(
+                  name: d['name'] ?? '',
+                  location: d['location'] ?? '',
+                  image: d['image_url'] ??
+                      'https://images.unsplash.com/photo-1501785888041-af3ef285b470',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            DestinationDetailsPage(destination: d),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _fetchDestinations(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator()); // লোডিং ইন্ডিকেটর
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}')); // Error দেখাবে
-        }
-        final destinations = snapshot.data;
-        if (destinations == null || destinations.isEmpty) {
-          return const Center(child: Text('কোনো Destination পাওয়া যায়নি।'));
-        }
+    return Scaffold(
+      backgroundColor: const Color(0xfff6f7fb),
+      appBar: AppBar(
+        title: const Text("Tourism App"),
+        centerTitle: true,
+        backgroundColor: Colors.green,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _openSearch,
+          )
+        ],
+      ),
 
-        // ==========================
-        // GridView এ destination দেখানো
-        // ==========================
-        return Padding(
-          padding: const EdgeInsets.all(12),
-          child: GridView.builder(
-            itemCount: destinations.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.8,
+      drawer: _buildDrawer(),
+
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _body(),
+      ),
+
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: selectedIndex,
+        onTap: (i) => setState(() => selectedIndex = i),
+        selectedItemColor: Colors.green,
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.confirmation_number), label: "Tickets"),
+          BottomNavigationBarItem(icon: Icon(Icons.star), label: "Reviews"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+        ],
+      ),
+    );
+  }
+
+  Drawer _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green, Colors.teal],
+              ),
             ),
-            itemBuilder: (context, index) {
-              final dest = destinations[index];
-              return GestureDetector(
-                onTap: () {
-                  // Destination এর বিস্তারিত পেজে নেভিগেট
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DestinationDetailsPage(destination: dest),
-                    ),
-                  );
-                },
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                          child: Image.network(
-                            dest['image_url'] ?? '',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey.shade300,
-                              child: const Center(child: Icon(Icons.broken_image, size: 50)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Text(
-                          dest['name'] ?? '',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+            child: Text(
+              "Tourism Dashboard",
+              style: TextStyle(color: Colors.white, fontSize: 22),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: const Text("Home"),
+            onTap: () {
+              setState(() => selectedIndex = 0);
+              Navigator.pop(context);
             },
+          ),
+          ListTile(
+            leading: const Icon(Icons.confirmation_number),
+            title: const Text("My Tickets"),
+            onTap: () {
+              setState(() => selectedIndex = 1);
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text("Logout"),
+            onTap: _logout,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ---------------- CARD UI ---------------- */
+
+class _DestinationCard extends StatelessWidget {
+  final String name;
+  final String location;
+  final String image;
+  final VoidCallback onTap;
+
+  const _DestinationCard({
+    required this.name,
+    required this.location,
+    required this.image,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          image: DecorationImage(
+            image: NetworkImage(image),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+              colors: [
+                Colors.black87,
+                Colors.transparent,
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.all(10),
+          alignment: Alignment.bottomLeft,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                location,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/* ---------------- LOADING UI ---------------- */
+
+class _LoadingGrid extends StatelessWidget {
+  const _LoadingGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.78,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: 6,
+      itemBuilder: (_, __) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(16),
           ),
         );
       },
@@ -241,42 +313,57 @@ class _DestinationListPageState extends State<DestinationListPage> {
   }
 }
 
-/// =======================
-/// SEARCH DELEGATE
-/// =======================
-class DestinationSearch extends SearchDelegate<String> {
-  final SupabaseClient _client = Supabase.instance.client;
+/* ---------------- SEARCH ---------------- */
 
-  @override
-  List<Widget>? buildActions(BuildContext context) {
-    return [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')]; // সার্চ ক্লিয়ার
-  }
+class DestinationSearch extends SearchDelegate {
+  final SupabaseClient client;
 
-  @override
-  Widget? buildLeading(BuildContext context) {
-    return IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, '')); // ব্যাক বাটন
+  DestinationSearch(this.client);
+
+  Future<List<Map<String, dynamic>>> _search(String q) async {
+    final res = await client
+        .from('destinations')
+        .select()
+        .or('name.ilike.%$q%,location.ilike.%$q%');
+
+    return List<Map<String, dynamic>>.from(res);
   }
 
   @override
   Widget buildResults(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _searchDestinations(query), // সার্চ ফাংশন কল
+    return FutureBuilder(
+      future: _search(query),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final results = snapshot.data!;
-        if (results.isEmpty) return const Center(child: Text('কোনো Destination পাওয়া যায়নি।'));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return const Center(child: Text("Search failed"));
+        }
+
+        final data = snapshot.data ?? [];
+
+        if (data.isEmpty) {
+          return const Center(child: Text("No results found"));
+        }
+
         return ListView.builder(
-          itemCount: results.length,
-          itemBuilder: (_, index) {
-            final dest = results[index];
+          itemCount: data.length,
+          itemBuilder: (_, i) {
+            final d = data[i];
+
             return ListTile(
-              title: Text(dest['name'] ?? ''),
-              subtitle: Text(dest['location'] ?? ''),
+              leading: const Icon(Icons.place),
+              title: Text(d['name'] ?? ''),
+              subtitle: Text(d['location'] ?? ''),
               onTap: () {
-                close(context, dest['name'] ?? '');
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => DestinationDetailsPage(destination: dest)),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        DestinationDetailsPage(destination: d),
+                  ),
                 );
               },
             );
@@ -287,49 +374,19 @@ class DestinationSearch extends SearchDelegate<String> {
   }
 
   @override
-  Widget buildSuggestions(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _searchDestinations(query), // টাইপ করার সাথে সাথে সাজেশন
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final suggestions = snapshot.data!;
-        if (suggestions.isEmpty) return const Center(child: Text('কোনো Destination পাওয়া যায়নি।'));
-        return ListView.builder(
-          itemCount: suggestions.length,
-          itemBuilder: (_, index) {
-            final dest = suggestions[index];
-            return ListTile(
-              title: Text(dest['name'] ?? ''),
-              subtitle: Text(dest['location'] ?? ''),
-              onTap: () {
-                query = dest['name'] ?? '';
-                showResults(context); // নির্বাচিত সাজেশন দেখাবে
-              },
-            );
-          },
-        );
-      },
-    );
-  }
+  Widget buildSuggestions(BuildContext context) => buildResults(context);
 
-  /// ==========================
-  /// সার্চ ফাংশন (name, location, description)
-  /// ==========================
-  Future<List<Map<String, dynamic>>> _searchDestinations(String query) async {
-    if (query.trim().isEmpty) {
-      return [];
-    }
-
-    final response = await _client
-        .from('destinations')
-        .select()
-        .or(
-          'name.ilike.%${query.trim()}%,' 
-          'location.ilike.%${query.trim()}%,' 
-          'description.ilike.%${query.trim()}%',
+  @override
+  List<Widget>? buildActions(BuildContext context) => [
+        IconButton(
+          icon: const Icon(Icons.clear),
+          onPressed: () => query = '',
         )
-        .order('name');
+      ];
 
-    return List<Map<String, dynamic>>.from(response);
-  }
+  @override
+  Widget? buildLeading(BuildContext context) => IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => close(context, ''),
+      );
 }
