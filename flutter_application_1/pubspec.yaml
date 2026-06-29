@@ -1,5 +1,5 @@
 name: flutter_application_1
-description: "A new Flutter project."
+description: "Visit Bangladesh App"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -10,30 +10,32 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_animate: ^4.5.0
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
 
-  # Supabase for authentication & database
-  supabase_flutter: ^2.3.4
+  # 🔥 Backend
+  supabase_flutter: 2.3.4
 
-  # Carousel Slider for banners
+  # 🗺️ Map (FREE OpenStreetMap)
+  flutter_map: ^8.2.0
+  latlong2: ^0.9.1
+
+  # 🔗 Utilities
+  url_launcher: ^6.3.2
+
+  # 🎨 UI
   carousel_slider: ^5.1.1
-
-  # QR Code generator (v4.x supports named data parameter)
   qr_flutter: ^4.1.0
-
-  # Google Maps
-  google_maps_flutter: ^2.14.0
-
-  # iOS style icons
   cupertino_icons: ^1.0.8
-
-  # Screenshot for capturing ticket
   screenshot: ^3.0.0
-
-  # Share/Download ticket
   share_plus: ^12.0.1
-
-  # Win32 (for Windows platform)
-  win32: ^5.15.0
+  
+  # 🎫 NEW (ticket system pro upgrade)
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  path_provider: ^2.1.4
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:
@@ -41,8 +43,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
 
-# Flutter launcher icons configuration
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/images/Glogo.png"
@@ -50,7 +51,6 @@ flutter_icons:
 flutter:
   uses-material-design: true
 
-  # Assets (images, logos, banners)
   assets:
     - assets/images/Glogo.png
     - assets/images/cover.png

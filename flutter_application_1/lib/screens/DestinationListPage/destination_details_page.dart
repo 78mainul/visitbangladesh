@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/destination.dart';
 import '../booking/booking_screen.dart';
@@ -11,13 +14,45 @@ class DestinationDetailsPage extends StatelessWidget {
     required this.destination,
   });
 
+  Future<void> _openLocation(
+    double? latitude,
+    double? longitude,
+    String location,
+  ) async {
+    Uri url;
+
+    if (latitude != null && longitude != null) {
+      url = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
+      );
+    } else {
+      url = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(location)}',
+      );
+    }
+
+    await launchUrl(
+      url,
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = destination['name'] ?? 'Unknown';
     final location = destination['location'] ?? '';
     final description = destination['description'] ?? '';
+
     final image = destination['image_url'] ??
         'https://images.unsplash.com/photo-1501785888041-af3ef285b470';
+
+    final latitude = destination['lat'] != null
+        ? double.tryParse(destination['lat'].toString())
+        : null;
+
+    final longitude = destination['lng'] != null
+        ? double.tryParse(destination['lng'].toString())
+        : null;
 
     return Scaffold(
       backgroundColor: const Color(0xfff6f7fb),
@@ -35,7 +70,7 @@ class DestinationDetailsPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /* ---------------- HERO IMAGE ---------------- */
+                // HERO IMAGE
                 Stack(
                   children: [
                     ClipRRect(
@@ -48,21 +83,23 @@ class DestinationDetailsPage extends StatelessWidget {
                         height: 250,
                         width: double.infinity,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 250,
+                            color: Colors.grey.shade300,
+                            child: const Center(
+                              child: Icon(Icons.image_not_supported, size: 50),
+                            ),
+                          );
+                        },
                       ),
                     ),
 
                     Container(
                       height: 250,
                       decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(24),
-                          bottomRight: Radius.circular(24),
-                        ),
                         gradient: LinearGradient(
-                          colors: [
-                            Colors.black54,
-                            Colors.transparent,
-                          ],
+                          colors: [Colors.black54, Colors.transparent],
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
                         ),
@@ -104,7 +141,7 @@ class DestinationDetailsPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _infoCard(),
+                      _infoCard(location, latitude, longitude),
 
                       const SizedBox(height: 16),
 
@@ -127,6 +164,63 @@ class DestinationDetailsPage extends StatelessWidget {
                           height: 1.5,
                         ),
                       ),
+
+                      const SizedBox(height: 20),
+
+                      // ✅ MAP ADDED HERE
+                      if (latitude != null && longitude != null) ...[
+                        const Text(
+                          "Location",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        Container(
+                          height: 250,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          clipBehavior: Clip.hardEdge,
+                          child: FlutterMap(
+                            options: MapOptions(
+                              initialCenter: LatLng(
+                                latitude,
+                                longitude,
+                              ),
+                              initialZoom: 14,
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate:
+                                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                userAgentPackageName:
+                                    'com.example.flutter_application_1',
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: LatLng(
+                                      latitude,
+                                      longitude,
+                                    ),
+                                    width: 50,
+                                    height: 50,
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 40,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -134,7 +228,7 @@ class DestinationDetailsPage extends StatelessWidget {
             ),
           ),
 
-          /* ---------------- BOOK NOW BUTTON ---------------- */
+          // BOOK NOW BUTTON
           Positioned(
             bottom: 0,
             left: 0,
@@ -147,33 +241,33 @@ class DestinationDetailsPage extends StatelessWidget {
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 10,
-                  )
+                  ),
                 ],
               ),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-
-                /* 🔥 FIXED NAVIGATION */
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BookingScreen(
-                        destination: Destination.fromMap(destination),
-                      ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                  );
-                },
-
-                child: const Text(
-                  "Book Now",
-                  style: TextStyle(fontSize: 16),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BookingScreen(
+                          destination: Destination.fromMap(destination),
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "Book Now",
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
             ),
@@ -183,9 +277,11 @@ class DestinationDetailsPage extends StatelessWidget {
     );
   }
 
-  /* ---------------- INFO CARD ---------------- */
-
-  Widget _infoCard() {
+  Widget _infoCard(
+    String location,
+    double? latitude,
+    double? longitude,
+  ) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -195,22 +291,39 @@ class DestinationDetailsPage extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-          )
+          ),
         ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _InfoItem(icon: Icons.place, label: "Location"),
-          _InfoItem(icon: Icons.star, label: "4.8"),
-          _InfoItem(icon: Icons.lock_clock, label: "Open"),
+          InkWell(
+            onTap: () => _openLocation(
+              latitude,
+              longitude,
+              location,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            child: Column(
+              children: [
+                const Icon(Icons.place, color: Colors.green),
+                const SizedBox(height: 4),
+                Text(
+                  latitude != null && longitude != null
+                      ? "View Map"
+                      : "Location",
+                ),
+              ],
+            ),
+          ),
+
+          const _InfoItem(icon: Icons.star, label: "4.8"),
+          const _InfoItem(icon: Icons.lock_clock, label: "Open"),
         ],
       ),
     );
   }
 }
-
-/* ---------------- INFO ITEM ---------------- */
 
 class _InfoItem extends StatelessWidget {
   final IconData icon;

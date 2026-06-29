@@ -223,7 +223,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: DropdownButtonFormField<String>(
-                      value: category,
+                      initialValue: category,
 
                       style: const TextStyle(
                         color: Colors.white,

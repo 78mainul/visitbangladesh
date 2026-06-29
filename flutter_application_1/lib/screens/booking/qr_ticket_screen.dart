@@ -1,127 +1,151 @@
+import 'dart:typed_data';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
-class QRTicketScreen extends StatelessWidget {
+class TicketDetailsScreen extends StatefulWidget {
+  final String ticketId;
   final String destination;
+  final int tickets;
   final int total;
 
-  const QRTicketScreen({
+  const TicketDetailsScreen({
     super.key,
+    required this.ticketId,
     required this.destination,
+    required this.tickets,
     required this.total,
   });
 
-  String get qrData {
-    return '''
-DESTINATION:$destination
-TOTAL:$total
-TIME:${DateTime.now().toIso8601String()}
-''';
+  @override
+  State<TicketDetailsScreen> createState() => _TicketDetailsScreenState();
+}
+
+class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
+  final ScreenshotController controller = ScreenshotController();
+  bool loading = false;
+
+  String get qrData =>
+      "TICKET_ID: ${widget.ticketId}\nDEST: ${widget.destination}\nTICKETS: ${widget.tickets}\nTOTAL: ৳${widget.total}";
+
+  Future<Uint8List?> capture() async {
+    return await controller.capture(pixelRatio: 3.0);
+  }
+
+  Future<void> saveTicket() async {
+    setState(() => loading = true);
+
+    try {
+      final image = await capture();
+      if (image == null) return;
+
+      final dir = await getApplicationDocumentsDirectory();
+
+      final file = File(
+        "${dir.path}/ticket_${DateTime.now().millisecondsSinceEpoch}.png",
+      );
+
+      await file.writeAsBytes(image);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Saved ✅")),
+      );
+    } finally {
+      setState(() => loading = false);
+    }
+  }
+
+  Future<void> shareTicket() async {
+    setState(() => loading = true);
+
+    try {
+      final image = await capture();
+      if (image == null) return;
+
+      final xfile = XFile.fromData(image, name: "ticket.png");
+
+      await Share.shareXFiles([xfile], text: "My Ticket 🎫");
+    } finally {
+      setState(() => loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f172a),
       appBar: AppBar(
-        title: const Text("Digital Boarding Pass"),
-        centerTitle: true,
-        backgroundColor: Colors.black,
-        elevation: 0,
+        title: const Text("Ticket"),
+        backgroundColor: Colors.green,
       ),
       body: Center(
-        child: Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: const LinearGradient(
-              colors: [Color(0xff1e293b), Color(0xff0f172a)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        child: Screenshot(
+          controller: controller,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Colors.black, Colors.blueGrey],
+              ),
+              borderRadius: BorderRadius.circular(20),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              )
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.airplane_ticket,
-                color: Colors.white,
-                size: 40,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
 
-              const SizedBox(height: 10),
+                const Icon(Icons.airplane_ticket, color: Colors.white, size: 40),
 
-              Text(
-                destination,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
+                const SizedBox(height: 10),
+
+                Text(
+                  widget.destination,
+                  style: const TextStyle(color: Colors.white, fontSize: 20),
+                ),
+
+                const SizedBox(height: 10),
+
+                Text("Tickets: ${widget.tickets}", style: const TextStyle(color: Colors.white)),
+                Text("Total: ৳${widget.total}", style: const TextStyle(color: Colors.white)),
+
+                const SizedBox(height: 15),
+
+                Container(
                   color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 6),
-
-              Text(
-                "Total: ৳$total",
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: QrImageView(
-                  data: qrData,
-                  size: 220,
-                  backgroundColor: Colors.white,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              const Text(
-                "Show this QR code at entry gate",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white70,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  "✓ Verified Digital Ticket",
-                  style: TextStyle(
-                    color: Colors.greenAccent,
-                    fontWeight: FontWeight.bold,
+                  padding: const EdgeInsets.all(10),
+                  child: QrImageView(
+                    data: qrData,
+                    size: 180,
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 15),
+
+                if (loading)
+                  const CircularProgressIndicator()
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: saveTicket,
+                          child: const Text("Save"),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: shareTicket,
+                          child: const Text("Share"),
+                        ),
+                      ),
+                    ],
+                  )
+              ],
+            ),
           ),
         ),
       ),

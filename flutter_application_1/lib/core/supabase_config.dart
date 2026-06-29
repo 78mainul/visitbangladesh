@@ -5,6 +5,12 @@ class SupabaseConfig {
     await Supabase.initialize(
       url: 'https://gfzaqvouvptozxrygkzo.supabase.co',
       anonKey: 'sb_publishable_TsBPa4xLikXVGQkWSV8FGQ_vYAOYqyu',
+
+      // 🔥 IMPORTANT FIX
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+        autoRefreshToken: true,
+      ),
     );
   }
 }

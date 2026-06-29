@@ -62,37 +62,44 @@ class _BookingScreenState extends State<BookingScreen> {
         return;
       }
 
-      // ✅ FIXED DATA (matches your DB exactly)
-      final ticketData = {
+      try {
+  // 🎫 ticket insert করা হচ্ছে Supabase এ
+  final response = await _client
+      .from('tickets')
+      .insert({
         'user_id': user.id,
         'destination_id': widget.destination.id,
         'destination_name': widget.destination.name,
-        'tickets_count': tickets.toString(), // DB = text তাই string
-        'total_price': total,                // ✅ correct column name
+        'tickets_count': tickets, // ✅ string না, int রাখাই better
+        'total_price': total,
         'travel_date': travelDate!.toIso8601String(),
         'created_at': DateTime.now().toIso8601String(),
-      };
+      })
+      .select()   // 🔥 inserted row return করবে
+      .single();
 
-      await _client.from('tickets').insert(ticketData);
+  // 🆔 এখান থেকে নতুন ticket id নেওয়া হচ্ছে
+  final createdTicketId = response['id'];
 
-      if (!mounted) return;
+  if (!mounted) return;
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TicketDetailsScreen(
-            destination: widget.destination.name ?? 'Unknown Destination',
-            total: total,
-            tickets: tickets,
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
+  // 🎯 এখন ticket details page এ যাওয়া হচ্ছে
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => TicketDetailsScreen(
+        ticketId: createdTicketId, // ✅ FIXED
+      ),
+    ),
+  );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Booking failed ❌: $e")),
-      );
+} catch (e) {
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text("Booking failed ❌: $e")),
+  );
+}
     } finally {
       if (mounted) {
         setState(() => _loading = false);
