@@ -1,48 +1,62 @@
+import 'dart:io'; 
+// 📁 ফাইল সিস্টেম access করার জন্য (image/pdf save করার কাজে লাগে)
 
-// 📦 Dart core library (ফাইল সেভ/স্টোরেজের জন্য)
-import 'dart:io';
+import 'package:flutter/material.dart'; 
+// 🎨 Flutter UI বানানোর জন্য মূল framework
 
-// 🎯 Flutter UI framework (অ্যাপের UI বানানোর জন্য)
-import 'package:flutter/material.dart';
+import 'package:screenshot/screenshot.dart'; 
+// 📸 UI স্ক্রিনকে image হিসেবে capture করার জন্য
 
-// 📸 স্ক্রিনশট নেওয়ার জন্য প্যাকেজ
-import 'package:screenshot/screenshot.dart';
+import 'package:qr_flutter/qr_flutter.dart'; 
+// 📊 QR code generate করার জন্য
 
-// 📊 QR কোড তৈরি করার জন্য
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:path_provider/path_provider.dart'; 
+// 📁 মোবাইলের internal storage path বের করার জন্য
 
-// 📁 মোবাইলের storage access করার জন্য
-import 'package:path_provider/path_provider.dart';
+import 'package:pdf/widgets.dart' as pw; 
+// 📄 PDF বানানোর জন্য (pw = pdf widgets alias)
 
-// 📄 PDF তৈরি করার জন্য
-import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart'; 
+// 🖨️ PDF share/print করার জন্য
 
-// 🖨️ PDF শেয়ার/প্রিন্ট করার জন্য
-import 'package:printing/printing.dart';
-
-// ☁️ Supabase backend (ডাটাবেস)
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; 
+// ☁️ Supabase backend database access করার জন্য
 
 
-/* =========================================================
-   🎫 TICKET MODEL (ডাটার কাঠামো)
-   এখানে টিকিটের সব তথ্য রাখা হয়
-========================================================= */
+/* ===================== MODEL ===================== */
+
 class TicketModel {
-  final String userName;        // 👤 ইউজারের নাম
-  final String mobile;          // 📞 ইউজারের মোবাইল
+  // 🎫 Ticket এর সব data structure এখানে define করা হচ্ছে
 
-  final String destinationName; // 📍 গন্তব্যের নাম
-  final String location;        // 🌍 লোকেশন
+  final String userName; 
+  // 👤 ইউজারের নাম
 
-  final double price;           // 💰 এক টিকিটের দাম
-  final int quantity;           // 🎟️ কয়টা টিকিট
-  final double totalPrice;      // 💵 মোট দাম
+  final String mobile; 
+  // 📞 ইউজারের মোবাইল নাম্বার
 
-  final String travelDate;      // 📅 যাত্রার তারিখ
-  final String bookedAt;        // ⏰ বুক করার সময়
+  final String destinationName; 
+  // 📍 কোথায় যাবে (destination name)
 
-  final String ticketId;        // 🆔 টিকিট ID
+  final String location; 
+  // 🌍 লোকেশনের নাম
+
+  final double price; 
+  // 💰 এক টিকিটের দাম
+
+  final int quantity; 
+  // 🎟️ কয়টা টিকিট নেওয়া হয়েছে
+
+  final double totalPrice; 
+  // 💵 মোট দাম
+
+  final String travelDate; 
+  // 📅 যাত্রার তারিখ
+
+  final String bookedAt; 
+  // ⏰ কখন বুক করা হয়েছে
+
+  final String ticketId; 
+  // 🆔 টিকিটের ইউনিক আইডি
 
   TicketModel({
     required this.userName,
@@ -59,306 +73,362 @@ class TicketModel {
 }
 
 
-/* =========================================================
-   ☁️ TICKET SERVICE (Supabase থেকে ডাটা আনা)
-========================================================= */
+/* ===================== SERVICE ===================== */
+
 class TicketService {
-  final supabase = Supabase.instance.client;
+  // ☁️ Supabase থেকে data আনার জন্য service class
 
-  /* 🎫 নির্দিষ্ট ticketId দিয়ে ডাটা আনা */
+  final supabase = Supabase.instance.client; 
+  // 🔗 Supabase client initialize করা হচ্ছে
+
   Future<TicketModel?> getTicket(String ticketId) async {
+    // 🎫 নির্দিষ্ট ticketId দিয়ে ticket data আনা
+
     try {
-
-      // 🔥 Supabase থেকে tickets table query করা হচ্ছে
-      // এখানে users + destinations টেবিল join করা হয়েছে
       final response = await supabase
-          .from('tickets')
-          .select('*, users(name, mobile), destinations(name, location, price)')
-          .eq('id', ticketId)
-          .maybeSingle();
+          .from('tickets') 
+          // 📂 tickets table থেকে data আনা হচ্ছে
 
-      // ❌ যদি কোনো ডাটা না পাওয়া যায়
-      if (response == null) return null;
+          .select() 
+          // 📊 সব column select করা হচ্ছে
 
-      // ✅ Supabase response থেকে Model তৈরি করা হচ্ছে
+          .eq('id', ticketId) 
+          // 🔍 নির্দিষ্ট id match করা হচ্ছে
+
+          .maybeSingle(); 
+          // 🎯 একটাই row বা null return করবে
+
+      if (response == null) return null; 
+      // ❌ data না থাকলে null return
+
       return TicketModel(
-        userName: response['users']?['name'] ?? "",   // 👤 user name
-        mobile: response['users']?['mobile'] ?? "",   // 📞 mobile
+        userName: "", 
+        // 👤 এখন userName খালি রাখা হয়েছে (join করা হয়নি)
 
-        destinationName: response['destinations']?['name'] ?? "", // 📍 destination
-        location: response['destinations']?['location'] ?? "",    // 🌍 location
+        mobile: "", 
+        // 📞 mobile খালি রাখা হয়েছে
 
-        price: double.tryParse(
-              response['destinations']?['price']?.toString() ?? "0",
-            ) ??
-            0.0, // 💰 price safe convert
+        destinationName: response['destination_name'] ?? "", 
+        // 📍 destination name database থেকে আনা হচ্ছে
 
-        quantity: int.tryParse(
-              response['tickets_count']?.toString() ?? "0",
-            ) ??
-            0, // 🎟️ quantity safe convert
+        location: "", 
+        // 🌍 location এখন খালি
 
-        totalPrice: double.tryParse(
-              response['total_price']?.toString() ?? "0",
-            ) ??
-            0.0, // 💵 total price
+        price: 0, 
+        // 💰 price এখন default 0
 
-        travelDate: response['travel_date'] ?? "", // 📅 date
-        bookedAt: response['booked_at'] ?? "",     // ⏰ booked time
-        ticketId: response['id'],                  // 🆔 id
+        quantity: int.tryParse(response['tickets_count'].toString()) ?? 0,
+        // 🎟️ ticket count safe ভাবে integer এ convert করা হচ্ছে
+
+        totalPrice: double.tryParse(response['total_price'].toString()) ?? 0,
+        // 💵 total price safe ভাবে double এ convert করা হচ্ছে
+
+        travelDate: response['travel_date'] ?? "", 
+        // 📅 travel date নিচ্ছে
+
+        bookedAt: response['booked_at'] ?? "", 
+        // ⏰ booked time নিচ্ছে
+
+        ticketId: response['id'], 
+        // 🆔 ticket id সেট করা হচ্ছে
       );
 
     } catch (e) {
       // ❗ কোনো error হলে এখানে আসবে
-      debugPrint("Supabase error: $e");
-      return null;
+      debugPrint("error: $e"); 
+      // 🐞 console এ error দেখাবে
+
+      return null; 
+      // ❌ error হলে null return
     }
   }
 }
 
 
-/* =========================================================
-   🎫 TICKET DETAILS SCREEN (UI PAGE)
-========================================================= */
-class TicketDetailsScreen extends StatefulWidget {
-  final String ticketId; // কোন ticket দেখাতে হবে
+/* ===================== SCREEN ===================== */
 
-  const TicketDetailsScreen({
-    super.key,
-    required this.ticketId,
-  });
+class TicketDetailsScreen extends StatefulWidget {
+  // 📱 Ticket details দেখানোর screen
+
+  final String ticketId; 
+  // 🆔 কোন ticket দেখাবে সেটা pass করা হচ্ছে
+
+  const TicketDetailsScreen({super.key, required this.ticketId});
 
   @override
   State<TicketDetailsScreen> createState() => _TicketDetailsScreenState();
 }
 
 
+/* ===================== STATE ===================== */
+
 class _TicketDetailsScreenState extends State<TicketDetailsScreen> {
 
-  // 📸 স্ক্রিনশট controller
-  final ScreenshotController screenshotController = ScreenshotController();
+  final ScreenshotController controller = ScreenshotController();
+  // 📸 screen capture করার controller
 
-  // ☁️ service object
   final service = TicketService();
+  // ☁️ ticket service object
 
-  TicketModel? ticket; // 📦 টিকিট ডাটা
-  bool loading = true; // ⏳ লোডিং স্টেট
+  TicketModel? ticket;
+  // 🎫 ticket data store হবে এখানে
+
+  bool loading = true;
+  // ⏳ শুরুতে loading true
 
   @override
   void initState() {
     super.initState();
+    load();
+    // 🚀 screen open হলেই data load হবে
+  }
 
-    // 🚀 স্ক্রিন খুললেই ডাটা লোড হবে
-    loadTicket();
+  Future<void> load() async {
+    ticket = await service.getTicket(widget.ticketId);
+    // ☁️ Supabase থেকে ticket data আনা হচ্ছে
+
+    setState(() => loading = false);
+    // ⏳ loading শেষ করে UI update
   }
 
 
-  /* 🔄 Supabase থেকে টিকিট লোড করা */
-  Future<void> loadTicket() async {
-    try {
-      ticket = await service.getTicket(widget.ticketId);
-    } catch (e) {
-      debugPrint("Load error: $e");
-      ticket = null;
-    } finally {
-      if (mounted) {
-        setState(() {
-          loading = false; // ⏳ লোডিং শেষ
-        });
-      }
-    }
-  }
+  /* ===================== QR DATA ===================== */
 
-
-  /* 📊 QR code এর ভিতরে যেই ডাটা যাবে */
   String get qrData => '''
-Ticket ID: ${ticket?.ticketId ?? ""}
-Name: ${ticket?.userName ?? ""}
-Mobile: ${ticket?.mobile ?? ""}
-Destination: ${ticket?.destinationName ?? ""}
-Date: ${ticket?.travelDate ?? ""}
-Total: ${ticket?.totalPrice ?? ""}
+🎫 Visit Bangladesh Ticket
+ID: ${ticket?.ticketId}
+Destination: ${ticket?.destinationName}
+Date: ${ticket?.travelDate}
+Total: ${ticket?.totalPrice}
 ''';
+  // 📊 QR code এর ভিতরে যা data থাকবে
 
 
-  /* 🖼️ টিকিটের ছবি হিসেবে save করা */
-  Future<void> saveAsImage() async {
+  /* ===================== IMAGE SAVE ===================== */
 
-    final image = await screenshotController.capture();
+  Future<void> saveImage() async {
+    final img = await controller.capture();
+    // 📸 UI কে image হিসেবে capture করা হচ্ছে
 
-    if (image == null) return;
+    if (img == null) return;
+    // ❌ image না পেলে return
 
-    // 📁 ফোনের storage path নেওয়া
     final dir = await getApplicationDocumentsDirectory();
+    // 📁 app storage path নেওয়া হচ্ছে
 
-    // 📄 ফাইল তৈরি
-    final file = File(
-      "${dir.path}/ticket_${DateTime.now().millisecondsSinceEpoch}.png",
+    final file = File("${dir.path}/ticket_${ticket!.ticketId}.png");
+    // 📄 file create করা হচ্ছে
+
+    await file.writeAsBytes(img);
+    // 💾 image save করা হচ্ছে
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Saved Successfully")),
     );
-
-    // 💾 ছবি সেভ করা
-    await file.writeAsBytes(image);
-
-    // ✅ সফল message দেখানো
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("টিকিট PNG হিসেবে সেভ হয়েছে ✅")),
-      );
-    }
+    // ✅ success message দেখানো হচ্ছে
   }
 
 
-  /* 📄 PDF বানানো */
+  /* ===================== PDF GENERATE ===================== */
+
   Future<void> generatePdf() async {
     final pdf = pw.Document();
+    // 📄 নতুন PDF document তৈরি
 
-    // 📄 নতুন পেজ তৈরি করা হচ্ছে
     pdf.addPage(
       pw.Page(
         build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(20),
+            // 📦 PDF layout padding
 
-              pw.Text("🎫 Visit Bangladesh Ticket",
-                  style: pw.TextStyle(fontSize: 20)),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(),
+              // 📄 border draw করা হচ্ছে
 
-              pw.SizedBox(height: 10),
+              borderRadius: pw.BorderRadius.circular(10),
+              // 🔲 rounded corner
+            ),
 
-              pw.Text("Name: ${ticket?.userName ?? ""}"),
-              pw.Text("Mobile: ${ticket?.mobile ?? ""}"),
-              pw.Text("Destination: ${ticket?.destinationName ?? ""}"),
-              pw.Text("Location: ${ticket?.location ?? ""}"),
-              pw.Text("Price: ${ticket?.price ?? ""}"),
-              pw.Text("Quantity: ${ticket?.quantity ?? ""}"),
-              pw.Text("Total: ${ticket?.totalPrice ?? ""}"),
-              pw.Text("Travel Date: ${ticket?.travelDate ?? ""}"),
-              pw.Text("Booked At: ${ticket?.bookedAt ?? ""}"),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              // 📊 left aligned content
 
-              pw.SizedBox(height: 10),
+              children: [
 
-              pw.Text("Terms: Non-refundable | QR required at entry"),
-            ],
+                pw.Text(
+                  "🎫 VISIT BANGLADESH TOUR TICKET",
+                  // 🧾 PDF title
+                  style: pw.TextStyle(fontSize: 18),
+                ),
+
+                pw.Divider(),
+                // ➖ line separator
+
+                pw.Text("Destination: ${ticket?.destinationName}"),
+                // 📍 destination show
+
+                pw.Text("Travel Date: ${ticket?.travelDate}"),
+                // 📅 date show
+
+                pw.Text("Price: ${ticket?.totalPrice}"),
+                // 💰 price show
+
+                pw.Text("Quantity: ${ticket?.quantity}"),
+                // 🎟️ ticket count
+
+                pw.SizedBox(height: 20),
+                // 📏 space
+
+                pw.Center(
+                  child: pw.BarcodeWidget(
+                    barcode: pw.Barcode.qrCode(),
+                    // 📊 QR code PDF এর ভিতরে তৈরি
+
+                    data: qrData,
+                    // 🔗 QR data
+
+                    width: 120,
+                    height: 120,
+                  ),
+                ),
+
+                pw.SizedBox(height: 20),
+                // 📏 space
+
+                pw.Text(
+                  "⚠️ Non-refundable ticket | Show QR at entry",
+                  // ⚠️ warning text
+                  style: pw.TextStyle(fontSize: 10),
+                ),
+              ],
+            ),
           );
         },
       ),
     );
 
-    // 📤 PDF শেয়ার করা
     await Printing.sharePdf(
       bytes: await pdf.save(),
-      filename: "ticket.pdf",
+      filename: "tour_ticket.pdf",
+      // 📤 PDF share করা হচ্ছে
     );
   }
 
+
+  /* ===================== UI ===================== */
 
   @override
   Widget build(BuildContext context) {
 
     return Scaffold(
-
-      // 🎨 ব্যাকগ্রাউন্ড কালার
       backgroundColor: const Color(0xff0f172a),
+      // 🎨 screen background color
 
       appBar: AppBar(
-        title: const Text("Ticket Details"),
+        title: const Text("Tour Ticket"),
+        // 📱 top bar title
+
         backgroundColor: Colors.green,
+        // 🎨 appbar color
       ),
 
       body: loading
-
-          // ⏳ ডাটা লোডিং হলে loading spinner
           ? const Center(child: CircularProgressIndicator())
+          // ⏳ loading spinner
 
-          // ❌ ডাটা না পেলে message
           : ticket == null
-              ? const Center(
-                  child: Text(
-                    "Ticket পাওয়া যায়নি",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                )
+              ? const Center(child: Text("Ticket Not Found"))
+              // ❌ data না পেলে message
 
-              // 🎫 আসল টিকিট UI
               : Screenshot(
-                  controller: screenshotController,
+                  controller: controller,
+                  // 📸 screenshot enable
 
                   child: Center(
                     child: Container(
 
                       margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.all(16),
+                      // 📦 বাইরে space
+
+                      padding: const EdgeInsets.all(20),
+                      // 📦 ভিতরে space
 
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xff1e293b), Color(0xff0f172a)],
                         ),
+                        // 🎨 gradient background
+
                         borderRadius: BorderRadius.circular(20),
+                        // 🔲 rounded corner
                       ),
 
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        // 📏 content auto size
+
                         children: [
 
-                          // 👤 ইউজার নাম
-                          Text("👤 ${ticket!.userName}",
-                              style: const TextStyle(color: Colors.white)),
-
-                          // 📞 মোবাইল
-                          Text("📞 ${ticket!.mobile}",
-                              style: const TextStyle(color: Colors.white70)),
-
-                          const SizedBox(height: 10),
-
-                          // 📍 ডেস্টিনেশন
-                          Text("📍 ${ticket!.destinationName}",
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 20)),
-
-                          // 🌍 লোকেশন
-                          Text("Location: ${ticket!.location}",
-                              style: const TextStyle(color: Colors.white70)),
-
-                          const SizedBox(height: 10),
-
-                          // 💰 দাম
-                          Text("Price: ${ticket!.price}",
-                              style: const TextStyle(color: Colors.white)),
-
-                          // 🎟️ কয়টা টিকিট
-                          Text("Quantity: ${ticket!.quantity}",
-                              style: const TextStyle(color: Colors.white)),
-
-                          // 💵 মোট দাম
-                          Text("Total: ${ticket!.totalPrice}",
-                              style: const TextStyle(
-                                  color: Colors.greenAccent,
-                                  fontWeight: FontWeight.bold)),
-
-                          const SizedBox(height: 10),
-
-                          // 📊 QR Code
-                          Container(
-                            color: Colors.white,
-                            padding: const EdgeInsets.all(8),
-                            child: QrImageView(
-                              data: qrData,
-                              size: 150,
+                          const Text(
+                            "✈️ TOUR TICKET",
+                            // 🎫 title text
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
 
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 15),
+                          // 📏 spacing
 
-                          // 📥 PNG ডাউনলোড
-                          ElevatedButton(
-                            onPressed: saveAsImage,
-                            child: const Text("Download PNG"),
+                          Text("Destination: ${ticket!.destinationName}",
+                              style: const TextStyle(color: Colors.white)),
+                          // 📍 destination show
+
+                          Text("Date: ${ticket!.travelDate}",
+                              style: const TextStyle(color: Colors.white70)),
+                          // 📅 date show
+
+                          Text("Total: ৳${ticket!.totalPrice}",
+                              style: const TextStyle(color: Colors.greenAccent)),
+                          // 💰 total price
+
+                          const SizedBox(height: 15),
+                          // 📏 spacing
+
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            color: Colors.white,
+                            // 📦 QR box background white
+
+                            child: QrImageView(
+                              data: qrData,
+                              // 📊 QR data
+
+                              size: 140,
+                              // 📏 QR size
+                            ),
                           ),
 
-                          // 📄 PDF ডাউনলোড
-                          ElevatedButton(
+                          const SizedBox(height: 15),
+                          // 📏 spacing
+
+                          ElevatedButton.icon(
+                            onPressed: saveImage,
+                            // 📥 PNG save button
+
+                            icon: const Icon(Icons.download),
+                            label: const Text("Download PNG"),
+                          ),
+
+                          ElevatedButton.icon(
                             onPressed: generatePdf,
-                            child: const Text("Download PDF"),
+                            // 📄 PDF generate button
+
+                            icon: const Icon(Icons.picture_as_pdf),
+                            label: const Text("Download PDF"),
                           ),
                         ],
                       ),
